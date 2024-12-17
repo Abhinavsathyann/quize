@@ -1,0 +1,383 @@
+<html>
+<head>
+    <title>Custom Pizza Builder with Admin Inventory Management</title>
+    <!-- React library for building the user interface -->
+    <script src="https://unpkg.com/react/umd/react.development.js"></script>
+    <!-- ReactDOM for rendering the UI -->
+    <script src="https://unpkg.com/react-dom/umd/react-dom.development.js"></script>
+     <!-- Babel for JSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.js"></script>
+    <!-- Tailwind CSS for responsive and modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Razorpay for handling secure payments -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [view, setView] = useState('login');
+            const [user, setUser] = useState(null);
+            const [users, setUsers] = useState([]);
+            const [inventory, setInventory] = useState({
+                bases: { 'Thin Crust': 10, 'Thick Crust': 10, 'Cheese Burst': 10, 'Gluten Free': 10, 'Whole Wheat': 10 },
+                sauces: { 'Tomato Basil': 10, 'Barbecue': 10, 'Pesto': 10, 'Alfredo': 10, 'Buffalo': 10 },
+                cheeses: { 'Mozzarella': 10, 'Cheddar': 10, 'Parmesan': 10, 'Provolone': 10, 'Gorgonzola': 10 },
+                veggies: { 'Bell Peppers': 10, 'Onions': 10, 'Mushrooms': 10, 'Olives': 10, 'Spinach': 10, 'Tomatoes': 10, 'Jalapenos': 10, 'Pineapple': 10 },
+                meats: { 'Pepperoni': 10, 'Sausage': 10, 'Bacon': 10, 'Chicken': 10, 'Ham': 10 }
+            });
+
+            useEffect(() => {
+                if (user && user.role === 'admin') {
+                    checkInventoryThreshold();
+                }
+            }, [inventory, user]);
+
+            const checkInventoryThreshold = () => {
+                const threshold = 20;
+                let lowStockItems = [];
+
+                for (let category in inventory) {
+                    for (let item in inventory[category]) {
+                        if (inventory[category][item] < threshold) {
+                            lowStockItems.push(`${item} (${inventory[category][item]})`);
+                        }
+                    }
+                }
+
+                if (lowStockItems.length > 0) {
+                    alert(`Low stock alert! The following items are below the threshold:\n${lowStockItems.join('\n')}`);
+                    // Simulate sending an email
+                    console.log(`Sending email to admin@example.com with low stock items: ${lowStockItems.join(', ')}`);
+                }
+            };
+
+            return (
+                <div className="flex flex-col items-center">
+                    {view === 'login' && <Login setView={setView} setUser={setUser} users={users} />}
+                    {view === 'register' && <Register setView={setView} setUsers={setUsers} />}
+                    {view === 'forgotPassword' && <ForgotPassword setView={setView} />}
+                    {view === 'dashboard' && <Dashboard user={user} setView={setView} inventory={inventory} />}
+                    {view === 'customPizza' && <CustomPizzaBuilder setView={setView} inventory={inventory} setInventory={setInventory} />}
+                    {view === 'admin' && <AdminInventory setView={setView} inventory={inventory} setInventory={setInventory} />}
+                </div>
+            );
+        }
+
+        function Login({ setView, setUser, users }) {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+
+            const handleLogin = () => {
+                const user = users.find(u => u.email === email && u.password === password);
+                if (user) {
+                    setUser({ name: user.email, role: 'user' });
+                    setView('dashboard');
+                } else {
+                    alert('Invalid user credentials');
+                }
+            };
+
+            const handleAdminLogin = () => {
+                // Simulate admin login
+                if (email === 'admin' && password === 'admin') {
+                    setUser({ name: 'Admin', role: 'admin' });
+                    setView('admin');
+                } else {
+                    alert('Invalid admin credentials');
+                }
+            };
+
+            return (
+                <div className="bg-white p-8 rounded shadow-md w-80">
+                    <h2 className="text-2xl mb-4">Login</h2>
+                    <input 
+                        type="text" 
+                        placeholder="Email" 
+                        className="mb-4 p-2 w-full rounded-md border" 
+                        value={email} 
+                        onChange={(e) => setEmail(e.target.value)} 
+                    />
+                    <input 
+                        type="password" 
+                        placeholder="Password" 
+                        className="mb-4 p-2 w-full rounded-md border" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                    />
+                    <button className="bg-blue-500 text-white p-2 w-full rounded-md mb-4" onClick={handleLogin}>User Login</button>
+                    <button className="bg-red-500 text-white p-2 w-full rounded-md mb-4" onClick={handleAdminLogin}>Admin Login</button>
+                    <div className="flex justify-between">
+                        <button className="text-blue-500" onClick={() => setView('register')}>Register</button>
+                        <button className="text-blue-500" onClick={() => setView('forgotPassword')}>Forgot Password</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function Register({ setView, setUsers }) {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [confirmPassword, setConfirmPassword] = useState('');
+
+            const handleRegister = () => {
+                if (password !== confirmPassword) {
+                    alert('Passwords do not match');
+                    return;
+                }
+                if (!validateEmail(email)) {
+                    alert('Invalid email format');
+                    return;
+                }
+                setUsers(prevUsers => [...prevUsers, { email, password }]);
+                alert('User registered successfully');
+                setView('login');
+            };
+
+            const validateEmail = (email) => {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(String(email).toLowerCase());
+            };
+
+            return (
+                <div className="bg-white p-8 rounded shadow-md w-80">
+                    <h2 className="text-2xl mb-4">Register</h2>
+                    <input 
+                        type="text" 
+                        placeholder="Email" 
+                        className="mb-4 p-2 w-full rounded-md border" 
+                        value={email} 
+                        onChange={(e) => setEmail(e.target.value)} 
+                    />
+                    <input 
+                        type="password" 
+                        placeholder="Password" 
+                        className="mb-4 p-2 w-full rounded-md border" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                    />
+                    <input 
+                        type="password" 
+                        placeholder="Confirm Password" 
+                        className="mb-4 p-2 w-full rounded-md border" 
+                        value={confirmPassword} 
+                        onChange={(e) => setConfirmPassword(e.target.value)} 
+                    />
+                    <button className="bg-blue-500 text-white p-2 w-full rounded-md mb-4" onClick={handleRegister}>Register</button>
+                    <button className="text-blue-500" onClick={() => setView('login')}>Back to Login</button>
+                </div>
+            );
+        }
+
+        function ForgotPassword({ setView }) {
+            return (
+                <div className="bg-white p-8 rounded shadow-md w-80">
+                    <h2 className="text-2xl mb-4">Forgot Password</h2>
+                    <input type="text" placeholder="Email" className="mb-4 p-2 w-full rounded-md border" />
+                    <button className="bg-blue-500 text-white p-2 w-full rounded-md mb-4">Reset Password</button>
+                    <button className="text-blue-500" onClick={() => setView('login')}>Back to Login</button>
+                </div>
+            );
+        }
+
+        function Dashboard({ user, setView, inventory }) {
+            const pizzaVarieties = [
+                { name: 'Margherita', image: 'https://placehold.co/100x100?text=Margherita' },
+                { name: 'Pepperoni', image: 'https://placehold.co/100x100?text=Pepperoni' },
+                { name: 'BBQ Chicken', image: 'https://placehold.co/100x100?text=BBQ+Chicken' },
+                { name: 'Hawaiian', image: 'https://placehold.co/100x100?text=Hawaiian' },
+                { name: 'Veggie', image: 'https://placehold.co/100x100?text=Veggie' },
+                { name: 'Meat Lovers', image: 'https://placehold.co/100x100?text=Meat+Lovers' },
+                { name: 'Buffalo Chicken', image: 'https://placehold.co/100x100?text=Buffalo+Chicken' },
+                { name: 'Supreme', image: 'https://placehold.co/100x100?text=Supreme' }
+            ];
+
+            return (
+                <div className="bg-white p-8 rounded shadow-md w-80">
+                    <h2 className="text-2xl mb-4">Welcome, {user.name}</h2>
+                    <h3 className="text-xl mb-4">Available Pizza Varieties</h3>
+                    <ul className="list-disc pl-5">
+                        {pizzaVarieties.map((pizza, index) => (
+                            <li key={index} className="mb-2 flex items-center">
+                                <img src={pizza.image} alt={pizza.name} className="w-10 h-10 mr-2" />
+                                {pizza.name}
+                            </li>
+                        ))}
+                    </ul>
+                    <h3 className="text-xl mb-4">Current Inventory</h3>
+                    {Object.keys(inventory).map((category, index) => (
+                        <div key={index} className="mb-4">
+                            <h4 className="text-lg mb-2 capitalize">{category}</h4>
+                            <ul className="list-disc pl-5">
+                                {Object.keys(inventory[category]).map((item, idx) => (
+                                    <li key={idx} className="mb-1">
+                                        {item} ({inventory[category][item]})
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                    <button className="bg-green-500 text-white p-2 w-full rounded-md mt-4" onClick={() => setView('customPizza')}>Create Custom Pizza</button>
+                </div>
+            );
+        }
+
+        function CustomPizzaBuilder({ setView, inventory, setInventory }) {
+            const [step, setStep] = useState(1);
+            const [base, setBase] = useState('');
+            const [sauce, setSauce] = useState('');
+            const [cheese, setCheese] = useState('');
+            const [veggies, setVeggies] = useState([]);
+
+            const availableBases = Object.keys(inventory.bases);
+            const availableSauces = Object.keys(inventory.sauces);
+            const availableCheeses = Object.keys(inventory.cheeses);
+            const availableVeggies = Object.keys(inventory.veggies);
+
+            const handleVeggieChange = (veggie) => {
+                setVeggies(prevVeggies => 
+                    prevVeggies.includes(veggie) 
+                        ? prevVeggies.filter(v => v !== veggie) 
+                        : [...prevVeggies, veggie]
+                );
+            };
+
+            const handlePayment = () => {
+                const options = {
+                    key: "rzp_test_1DP5mmOlF5G5ag", // Replace with your Razorpay key ID
+                    amount: 50000, // Amount in paise (50000 paise = INR 500)
+                    currency: "INR",
+                    name: "Pizza Order",
+                    description: "Test Transaction",
+                    handler: function (response) {
+                        alert(`Payment Successful!\nOrder ID: ${response.razorpay_payment_id}`);
+                        updateInventory();
+                        setView('dashboard');
+                    },
+                    prefill: {
+                        name: "John Doe",
+                        email: "john.doe@example.com",
+                        contact: "9999999999"
+                    },
+                    theme: {
+                        color: "#3399cc"
+                    }
+                };
+                const rzp1 = new Razorpay(options);
+                rzp1.open();
+            };
+
+            const updateInventory = () => {
+                setInventory(prevInventory => {
+                    const newInventory = { ...prevInventory };
+                    newInventory.bases[base] -= 1;
+                    newInventory.sauces[sauce] -= 1;
+                    newInventory.cheeses[cheese] -= 1;
+                    veggies.forEach(veggie => {
+                        newInventory.veggies[veggie] -= 1;
+                    });
+                    return newInventory;
+                });
+            };
+
+            return (
+                <div className="bg-white p-8 rounded shadow-md w-80">
+                    <h2 className="text-2xl mb-4">Create Custom Pizza</h2>
+                    {step === 1 && (
+                        <div className="mb-4">
+                            <h3 className="text-xl mb-2">Select Base</h3>
+                            {availableBases.map((b, index) => (
+                                <label key={index} className="block mb-2">
+                                    <input type="radio" name="base" value={b} onChange={() => setBase(b)} className="mr-2" />
+                                    {b}
+                                </label>
+                            ))}
+                            <button className="bg-green-500 text-white p-2 w-full rounded-md mt-4" onClick={() => setStep(2)}>Next</button>
+                        </div>
+                    )}
+                    {step === 2 && (
+                        <div className="mb-4">
+                            <h3 className="text-xl mb-2">Select Sauce</h3>
+                            {availableSauces.map((s, index) => (
+                                <label key={index} className="block mb-2">
+                                    <input type="radio" name="sauce" value={s} onChange={() => setSauce(s)} className="mr-2" />
+                                    {s}
+                                </label>
+                            ))}
+                            <button className="bg-green-500 text-white p-2 w-full rounded-md mt-4" onClick={() => setStep(3)}>Next</button>
+                        </div>
+                    )}
+                    {step === 3 && (
+                        <div className="mb-4">
+                            <h3 className="text-xl mb-2">Select Cheese</h3>
+                            {availableCheeses.map((c, index) => (
+                                <label key={index} className="block mb-2">
+                                    <input type="radio" name="cheese" value={c} onChange={() => setCheese(c)} className="mr-2" />
+                                    {c}
+                                </label>
+                            ))}
+                            <button className="bg-green-500 text-white p-2 w-full rounded-md mt-4" onClick={() => setStep(4)}>Next</button>
+                        </div>
+                    )}
+                    {step === 4 && (
+                        <div className="mb-4">
+                            <h3 className="text-xl mb-2">Select Veggies</h3>
+                            {availableVeggies.map((v, index) => (
+                                <label key={index} className="block mb-2">
+                                    <input type="checkbox" value={v} onChange={() => handleVeggieChange(v)} className="mr-2" />
+                                    {v}
+                                </label>
+                            ))}
+                            <button className="bg-green-500 text-white p-2 w-full rounded-md mt-4" onClick={handlePayment}>Proceed to Payment</button>
+                        </div>
+                    )}
+                    <button className="text-blue-500 mt-4" onClick={() => setView('dashboard')}>Back to Dashboard</button>
+                </div>
+            );
+        }
+
+        function AdminInventory({ setView, inventory, setInventory }) {
+            const handleAddItem = (category, item) => {
+                setInventory(prevInventory => ({
+                    ...prevInventory,
+                    [category]: { ...prevInventory[category], [item]: 10 }
+                }));
+            };
+
+            const handleRemoveItem = (category, item) => {
+                setInventory(prevInventory => {
+                    const newCategory = { ...prevInventory[category] };
+                    delete newCategory[item];
+                    return { ...prevInventory, [category]: newCategory };
+                });
+            };
+
+            return (
+                <div className="bg-white p-8 rounded shadow-md w-80">
+                    <h2 className="text-2xl mb-4">Admin Inventory Management</h2>
+                    {Object.keys(inventory).map((category, index) => (
+                        <div key={index} className="mb-4">
+                            <h3 className="text-xl mb-2 capitalize">{category}</h3>
+                            <ul className="list-disc pl-5 mb-2">
+                                {Object.keys(inventory[category]).map((item, idx) => (
+                                    <li key={idx} className="mb-1 flex justify-between">
+                                        {item} ({inventory[category][item]})
+                                        <button className="text-red-500" onClick={() => handleRemoveItem(category, item)}>Remove</button>
+                                    </li>
+                                ))}
+                            </ul>
+                            <input type="text" placeholder={`Add new ${category.slice(0, -1)}`} className="p-2 w-full rounded-md border mb-2" id={`new-${category}`} />
+                            <button className="bg-green-500 text-white p-2 w-full rounded-md" onClick={() => handleAddItem(category, document.getElementById(`new-${category}`).value)}>Add</button>
+                        </div>
+                    ))}
+                    <button className="text-blue-500 mt-4" onClick={() => setView('login')}>Logout</button>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
